@@ -1,0 +1,2223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1B3A2D">
+<meta name="description" content="BSG Canteen Waste Tracker — track food and plastic waste by shift, sync to cloud">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Waste Tracker">
+<title>Canteen Waste Tracker 2025</title>
+
+<!-- PWA Manifest (inline data URI) -->
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQ2FudGVlbiBXYXN0ZSBUcmFja2VyIiwic2hvcnRfbmFtZSI6Ildhc3RlVHJhY2tlciIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjRjVGMEU4IiwidGhlbWVfY29sb3IiOiIjMUIzQTJEIn0=">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%231B3A2D'/><rect x='20' y='26' width='24' height='26' rx='3' fill='%23E8A430'/><rect x='16' y='21' width='32' height='5' rx='2' fill='%23F4C46A'/><rect x='27' y='15' width='10' height='7' rx='2' fill='%23E8A430'/><line x1='26' y1='30' x2='26' y2='48' stroke='%231B3A2D' stroke-width='2.5' stroke-linecap='round'/><line x1='32' y1='30' x2='32' y2='48' stroke='%231B3A2D' stroke-width='2.5' stroke-linecap='round'/><line x1='38' y1='30' x2='38' y2='48' stroke='%231B3A2D' stroke-width='2.5' stroke-linecap='round'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='36' fill='%231B3A2D'/><rect x='56' y='73' width='68' height='73' rx='8' fill='%23E8A430'/><rect x='45' y='59' width='90' height='14' rx='6' fill='%23F4C46A'/><rect x='76' y='42' width='28' height='20' rx='6' fill='%23E8A430'/><line x1='73' y1='84' x2='73' y2='135' stroke='%231B3A2D' stroke-width='7' stroke-linecap='round'/><line x1='90' y1='84' x2='90' y2='135' stroke='%231B3A2D' stroke-width='7' stroke-linecap='round'/><line x1='107' y1='84' x2='107' y2='135' stroke='%231B3A2D' stroke-width='7' stroke-linecap='round'/></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --forest: #1B3A2D;
+    --forest-mid: #2D5C45;
+    --forest-light: #3D7A5C;
+    --cream: #F5F0E8;
+    --amber: #E8A430;
+    --amber-light: #F4C46A;
+    --red: #D94F3D;
+    --red-light: #F28B7D;
+    --text: #1A1A1A;
+    --text-muted: #6B7B74;
+    --card-bg: #FFFFFF;
+    --border: #E2DDD5;
+    --sidebar-w: 220px;
+    --font-num: 'Space Grotesk', sans-serif;
+    --font-ui: 'DM Sans', sans-serif;
+    --base: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-ui);
+    font-size: var(--base);
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  /* ── LAYOUT ─────────────────────────────────────── */
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--forest);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+    transition: transform .25s ease;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+  }
+  .sidebar-logo .app-name {
+    font-family: var(--font-num);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    color: var(--amber);
+    line-height: 1.2;
+  }
+  .sidebar-logo .app-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,.5);
+    margin-top: 3px;
+    letter-spacing: .3px;
+  }
+
+  .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.35);
+    padding: 12px 20px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: rgba(255,255,255,.65);
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav-item.active { background: rgba(232,164,48,.12); color: var(--amber); border-left-color: var(--amber); }
+  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-bottom {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,.1);
+    font-size: 11px;
+    color: rgba(255,255,255,.3);
+  }
+
+  .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; }
+
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-title {
+    font-family: var(--font-num);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--forest);
+  }
+  .topbar-actions { display: flex; gap: 8px; }
+
+  .content { padding: 28px; }
+
+  /* ── BUTTONS ─────────────────────────────────────── */
+  .btn {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--forest); color: #fff; }
+  .btn-primary:hover { background: var(--forest-mid); }
+  .btn-amber { background: var(--amber); color: var(--forest); font-weight: 600; }
+  .btn-amber:hover { background: var(--amber-light); }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--forest); color: var(--forest); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-icon { padding: 8px; border-radius: 8px; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #b93d2e; }
+  .btn-success { background: #1B4D35; color: #fff; }
+
+  /* ── CARDS ─────────────────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .card-title {
+    font-family: var(--font-num);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  /* ── KPI RING ─────────────────────────────────── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .kpi-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+  .kpi-ring-wrap svg { transform: rotate(-90deg); }
+  .kpi-ring-center {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-num);
+    font-size: 11px; font-weight: 700;
+  }
+  .kpi-info .kpi-val {
+    font-family: var(--font-num);
+    font-size: 26px; font-weight: 700;
+    line-height: 1;
+    color: var(--forest);
+  }
+  .kpi-info .kpi-unit { font-size: 12px; color: var(--text-muted); }
+  .kpi-info .kpi-label { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+  .kpi-info .kpi-trend { font-size: 11.5px; margin-top: 4px; font-weight: 500; }
+  .trend-up { color: var(--red); }
+  .trend-dn { color: #22A06B; }
+
+  /* ── CHART ─────────────────────────────────────── */
+  .chart-wrap { position: relative; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-bottom: 28px; }
+  .bar-group { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; min-width: 0; }
+  .bar-stack { display: flex; flex-direction: column-reverse; width: 100%; flex: 1; position: relative; cursor: pointer; }
+  .bar-seg {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: opacity .15s;
+    min-height: 2px;
+  }
+  .bar-seg:hover { opacity: .8; }
+  .bar-label { font-size: 10px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .bar-val { font-family: var(--font-num); font-size: 10px; color: var(--text-muted); }
+
+  /* ── CHART LEGEND ────────────────────────────── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── DATA TABLE ──────────────────────────────── */
+  .data-table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    font-family: var(--font-num);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-muted);
+    padding: 10px 12px;
+    background: var(--cream);
+    border-bottom: 2px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:hover { background: rgba(27,58,45,.03); }
+  tbody tr.week-total td { background: rgba(27,58,45,.04); font-weight: 600; }
+  tbody tr.grand-total td { background: rgba(232,164,48,.1); font-weight: 700; color: var(--forest); }
+  td { padding: 9px 12px; color: var(--text); }
+  td.num { font-family: var(--font-num); text-align: right; }
+  td.muted { color: var(--text-muted); }
+  .badge { 
+    display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  }
+  .badge-morning { background: #FFF3CD; color: #856404; }
+  .badge-afternoon { background: #D1ECF1; color: #0C5460; }
+  .badge-night { background: #D6D8FF; color: #3730A3; }
+
+  /* ── ENTRY FORM ──────────────────────────────── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+  .form-input {
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    transition: border-color .15s;
+    width: 100%;
+  }
+  .form-input:focus { outline: none; border-color: var(--forest-light); }
+  select.form-input { cursor: pointer; }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+
+  .shift-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .shift-tab {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    transition: all .15s;
+    font-family: var(--font-ui);
+  }
+  .shift-tab.active { background: var(--forest); color: #fff; border-color: var(--forest); }
+
+  .shift-panel { display: none; }
+  .shift-panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ── MONTH SELECTOR ──────────────────────────── */
+  .month-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 24px; }
+  .month-btn {
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    color: var(--text-muted);
+    transition: all .15s;
+    position: relative;
+  }
+  .month-btn.has-data { color: var(--forest); border-color: rgba(27,58,45,.3); }
+  .month-btn.active { background: var(--forest); color: #fff; border-color: var(--forest); }
+  .month-btn.active.has-data { background: var(--forest-mid); }
+  .month-dot {
+    position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--amber);
+  }
+  .month-btn.active .month-dot { background: #fff; }
+
+  /* ── PAGE SECTIONS ───────────────────────────── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: var(--font-num);
+    font-size: 15px; font-weight: 600;
+    color: var(--text);
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  /* ── TOAST ───────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--forest);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 500;
+    z-index: 1000;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s ease;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #1B4D35; }
+  .toast.error { background: var(--red); }
+  .toast.info { background: #2563EB; }
+
+  /* ── MODAL ───────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%; max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-wide { max-width: 640px; }
+  .modal-title {
+    font-family: var(--font-num);
+    font-size: 17px; font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 6px;
+  }
+  .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* ── MOBILE BOTTOM NAV ───────────────────────── */
+  .mobile-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--forest);
+    z-index: 100;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .mobile-nav-inner { display: flex; justify-content: space-around; }
+  .mob-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 12px;
+    color: rgba(255,255,255,.5);
+    font-size: 10px; font-weight: 500;
+    transition: color .15s;
+    user-select: none;
+  }
+  .mob-nav-item.active { color: var(--amber); }
+  .mob-nav-item .mn-icon { font-size: 20px; line-height: 1; }
+
+  .mobile-header {
+    display: none;
+    background: var(--forest);
+    color: #fff;
+    padding: 14px 18px;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 90;
+  }
+  .mobile-header .mh-title {
+    font-family: var(--font-num);
+    font-size: 16px; font-weight: 700;
+    color: var(--amber);
+  }
+
+  /* ── SUMMARY INSIGHTS ────────────────────────── */
+  .insight-row { display: flex; flex-direction: column; gap: 8px; }
+  .insight-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--cream);
+    border-radius: 10px;
+    font-size: 13px;
+  }
+  .insight-item .ins-label { color: var(--text-muted); }
+  .insight-item .ins-val { font-family: var(--font-num); font-weight: 600; color: var(--forest); }
+
+  /* ── SYNC STATUS ─────────────────────────────── */
+  .sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--cream);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid var(--border);
+  }
+  .sync-status:hover { border-color: var(--forest-light); }
+  .sync-status.synced { background: #E6F4EA; color: #1B4D35; border-color: #B7E1C9; }
+  .sync-status.syncing { background: #E8F0FE; color: #174EA6; border-color: #AECBFA; }
+  .sync-status.error { background: #FCE8E6; color: #C5221F; border-color: #F5B7B1; }
+  .sync-status.offline { background: #FFF3CD; color: #856404; border-color: #FFE69C; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .sync-status.synced .sync-dot { background: #22A06B; }
+  .sync-status.syncing .sync-dot { background: #4285F4; animation: pulse 1s infinite; }
+  .sync-status.error .sync-dot { background: #D94F3D; }
+  .sync-status.offline .sync-dot { background: #E8A430; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── SETTINGS / CLOUD PANEL ──────────────────── */
+  .cloud-panel {
+    background: linear-gradient(135deg, #f8faf9 0%, #f0f4f1 100%);
+    border: 1px solid #d4e0d8;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .cloud-panel h4 {
+    font-family: var(--font-num);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--forest);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cloud-panel p {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .token-input {
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .sync-log {
+    font-family: monospace;
+    font-size: 11px;
+    background: #1a1a2e;
+    color: #a6e3a1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .sync-log .log-time { color: #89b4fa; }
+  .sync-log .log-err { color: #f38ba8; }
+  .sync-log .log-ok { color: #a6e3a1; }
+
+  /* ── RESPONSIVE ──────────────────────────────── */
+  @media (max-width: 768px) {
+    :root { --base: 13.5px; }
+
+    .sidebar, .topbar { display: none; }
+    .mobile-header { display: flex; }
+    .mobile-nav { display: block; }
+    .main { margin-left: 0; padding-bottom: 80px; }
+    .content { padding: 16px; }
+    .two-col { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-card { padding: 14px; gap: 10px; }
+    .kpi-ring-wrap { width: 52px; height: 52px; }
+    .kpi-info .kpi-val { font-size: 20px; }
+    .month-grid { grid-template-columns: repeat(4, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .shift-panel.active { grid-template-columns: 1fr; }
+    .section-header { flex-wrap: wrap; gap: 8px; }
+    .topbar-actions { flex-wrap: wrap; }
+    .modal { padding: 20px; }
+  }
+
+  @media (min-width: 769px) and (max-width: 1100px) {
+    :root { --sidebar-w: 195px; --base: 13px; }
+    .content { padding: 20px; }
+  }
+
+  @media screen and (max-width: 768px) {
+    html { font-size: 13px; }
+    body { font-size: 13px; }
+    .btn { font-size: 12.5px; padding: 7px 13px; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .es-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-state .es-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-state .es-sub { font-size: 13px; }
+
+  /* Install prompt */
+  .install-banner {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--forest);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    z-index: 999;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.2);
+    max-width: 90vw;
+  }
+  .install-banner.show { display: flex; }
+  .install-banner button {
+    background: var(--amber);
+    color: var(--forest);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="app-name">🗑️ WASTE TRACKER</div>
+    <div class="app-sub">Canteen · 2024–2025</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-section-label">Data</div>
+    <div class="nav-item" data-page="entry">
+      <span class="nav-icon">✏️</span> Daily Entry
+    </div>
+    <div class="nav-item" data-page="records">
+      <span class="nav-icon">📋</span> Records
+    </div>
+    <div class="nav-section-label">Reports</div>
+    <div class="nav-item" data-page="analytics">
+      <span class="nav-icon">📈</span> Analytics
+    </div>
+    <div class="nav-item" data-page="export">
+      <span class="nav-icon">⬇️</span> Export
+    </div>
+    <div class="nav-section-label">Cloud</div>
+    <div class="nav-item" data-page="cloud">
+      <span class="nav-icon">☁️</span> Sync & Backup
+    </div>
+  </nav>
+  <div class="sidebar-bottom">BSG Canteen · v2.0 PWA</div>
+</aside>
+
+<!-- MOBILE HEADER -->
+<div class="mobile-header">
+  <span class="mh-title">🗑️ Waste Tracker</span>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div class="sync-status offline" id="mobile-sync-badge" onclick="showPage('cloud')">
+      <span class="sync-dot"></span><span id="mobile-sync-text">Offline</span>
+    </div>
+    <button class="btn btn-amber btn-sm" onclick="showPage('entry')">+ Entry</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div class="topbar-actions">
+      <div class="sync-status offline" id="sync-badge" onclick="showPage('cloud')" title="Click to configure cloud sync">
+        <span class="sync-dot"></span><span id="sync-text">Offline</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="showPage('export')">⬇️ Export</button>
+      <button class="btn btn-amber btn-sm" onclick="showPage('entry')">+ Daily Entry</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD PAGE ══════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <!-- Charts Row -->
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Monthly Food Waste (kg)</div>
+          <div id="chart-food" class="bar-chart"></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#2D5C45"></div>Morning</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#E8A430"></div>Afternoon</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#1B3A2D"></div>Night</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Monthly Plastic Waste (kg)</div>
+          <div id="chart-plastic" class="bar-chart"></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#D94F3D"></div>Morning</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#F4C46A"></div>Afternoon</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6B7B74"></div>Night</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="two-col">
+        <div class="card">
+          <div class="section-header">
+            <div class="section-title">Recent Entries</div>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('records')">View all →</button>
+          </div>
+          <div id="recent-entries"></div>
+        </div>
+        <div class="card">
+          <div class="section-header"><div class="section-title">Quick Insights</div></div>
+          <div class="insight-row" id="insights-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ENTRY PAGE ══════════════════════════════ -->
+    <div class="page" id="page-entry">
+      <div class="card" style="max-width:700px">
+        <div class="section-header">
+          <div class="section-title">Record Daily Waste</div>
+        </div>
+        <div class="form-grid" style="margin-bottom:20px">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-input" id="entry-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Month</label>
+            <select class="form-input" id="entry-month">
+              <option value="January">January</option><option value="February">February</option>
+              <option value="March">March</option><option value="April">April</option>
+              <option value="May">May</option><option value="June">June</option>
+              <option value="July">July</option><option value="August">August</option>
+              <option value="September">September</option><option value="October">October</option>
+              <option value="November">November</option><option value="December">December</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="shift-tabs">
+          <button class="shift-tab active" data-shift="morning">🌅 Morning</button>
+          <button class="shift-tab" data-shift="afternoon">☀️ Afternoon</button>
+          <button class="shift-tab" data-shift="night">🌙 Night</button>
+        </div>
+
+        <div class="shift-panel active" id="shift-morning">
+          <div class="form-group">
+            <label class="form-label">🥗 Food Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="m-food" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">♻️ Plastic Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="m-plastic" placeholder="0.00">
+          </div>
+        </div>
+        <div class="shift-panel" id="shift-afternoon">
+          <div class="form-group">
+            <label class="form-label">🥗 Food Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="a-food" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">♻️ Plastic Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="a-plastic" placeholder="0.00">
+          </div>
+        </div>
+        <div class="shift-panel" id="shift-night">
+          <div class="form-group">
+            <label class="form-label">🥗 Food Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="n-food" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">♻️ Plastic Waste (kg)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="n-plastic" placeholder="0.00">
+          </div>
+        </div>
+
+        <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveEntry()">💾 Save Entry</button>
+          <button class="btn btn-ghost" onclick="clearEntryForm()">Clear</button>
+          <div id="entry-preview" style="font-size:12px;color:var(--text-muted);margin-left:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RECORDS PAGE ════════════════════════════ -->
+    <div class="page" id="page-records">
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-title">All Records</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="filter-month" style="width:140px;padding:7px 10px;font-size:13px" onchange="renderRecords()">
+            <option value="">All months</option>
+            <option>January</option><option>February</option><option>March</option>
+            <option>April</option><option>May</option><option>June</option>
+            <option>July</option><option>August</option><option>September</option>
+            <option>October</option><option>November</option><option>December</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Month</th>
+                <th style="text-align:right">Food AM (kg)</th>
+                <th style="text-align:right">Plastic AM (kg)</th>
+                <th style="text-align:right">Food PM (kg)</th>
+                <th style="text-align:right">Plastic PM (kg)</th>
+                <th style="text-align:right">Food Night (kg)</th>
+                <th style="text-align:right">Plastic Night (kg)</th>
+                <th style="text-align:right">Total Food</th>
+                <th style="text-align:right">Total Plastic</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="records-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ANALYTICS PAGE ══════════════════════════ -->
+    <div class="page" id="page-analytics">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Food vs Plastic Ratio by Month</div>
+          <div id="chart-ratio" class="bar-chart" style="height:200px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Shift Breakdown (All Time)</div>
+          <div id="shift-breakdown"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title">Monthly Summary Table</div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th style="text-align:right">Days Recorded</th>
+                <th style="text-align:right">Total Food (kg)</th>
+                <th style="text-align:right">Total Plastic (kg)</th>
+                <th style="text-align:right">Total Waste (kg)</th>
+                <th style="text-align:right">Avg/Day Food</th>
+                <th style="text-align:right">Avg/Day Plastic</th>
+                <th style="text-align:right">Peak Day</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ EXPORT PAGE ════════════════════════════ -->
+    <div class="page" id="page-export">
+      <div style="max-width:580px">
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-title" style="margin-bottom:6px">📄 PDF Report</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px">
+            Generate a formatted monthly or annual report with charts and summaries.
+          </p>
+          <div class="form-grid" style="margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Report Type</label>
+              <select class="form-input" id="pdf-type">
+                <option value="annual">Annual Summary (All months)</option>
+                <option value="monthly">Single Month</option>
+              </select>
+            </div>
+            <div class="form-group" id="pdf-month-wrap">
+              <label class="form-label">Month</label>
+              <select class="form-input" id="pdf-month">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="exportPDF()">⬇️ Download PDF</button>
+        </div>
+
+        <div class="card">
+          <div class="section-title" style="margin-bottom:6px">📊 Excel Export</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px">
+            Export all data to Excel with separate sheets per month and a summary sheet.
+          </p>
+          <div class="form-grid" style="margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Export Scope</label>
+              <select class="form-input" id="xl-scope">
+                <option value="all">All data (full year)</option>
+                <option value="month">Single month</option>
+              </select>
+            </div>
+            <div class="form-group" id="xl-month-wrap">
+              <label class="form-label">Month</label>
+              <select class="form-input" id="xl-month">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-amber" onclick="exportExcel()">⬇️ Download Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CLOUD / SYNC PAGE ═════════════════════ -->
+    <div class="page" id="page-cloud">
+      <div style="max-width:640px">
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-header">
+            <div class="section-title">☁️ Cloud Sync & Backup</div>
+            <div class="sync-status offline" id="cloud-sync-badge">
+              <span class="sync-dot"></span><span id="cloud-sync-text">Not configured</span>
+            </div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">
+            Connect your GitHub account to back up data to a private Gist. Your data stays in your control.
+            Works offline — changes sync automatically when you reconnect.
+          </p>
+
+          <div class="cloud-panel">
+            <h4>🔐 1. GitHub Personal Access Token</h4>
+            <p>
+              Create a token at <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--forest-light);font-weight:600">github.com/settings/tokens</a> 
+              → Generate new token (classic) → check <strong>gist</strong> scope only. Paste it below.
+            </p>
+            <div class="form-grid" style="grid-template-columns:1fr auto">
+              <div class="form-group">
+                <label class="form-label">Token</label>
+                <input type="password" class="form-input token-input" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              </div>
+              <div class="form-group" style="display:flex;align-items:flex-end">
+                <button class="btn btn-primary" onclick="testConnection()" style="width:100%">🔗 Test</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cloud-panel">
+            <h4>💾 2. Gist Backup</h4>
+            <p>
+              Your data is stored in a private GitHub Gist. If this is your first time, click <strong>Create Gist</strong>.
+              If you already have one, paste the Gist ID below.
+            </p>
+            <div class="form-grid" style="grid-template-columns:1fr auto auto">
+              <div class="form-group">
+                <label class="form-label">Gist ID (optional — auto-created)</label>
+                <input type="text" class="form-input token-input" id="gist-id" placeholder="Auto-generated on first sync">
+              </div>
+              <div class="form-group" style="display:flex;align-items:flex-end">
+                <button class="btn btn-success" onclick="createGist()" id="btn-create-gist">➕ Create Gist</button>
+              </div>
+              <div class="form-group" style="display:flex;align-items:flex-end">
+                <button class="btn btn-amber" onclick="syncNow()" id="btn-sync-now">🔄 Sync Now</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cloud-panel">
+            <h4>⚙️ 3. Auto-Sync Settings</h4>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr">
+              <div class="form-group">
+                <label class="form-label">
+                  <input type="checkbox" id="auto-sync" style="margin-right:6px" onchange="toggleAutoSync()">
+                  Auto-sync on save
+                </label>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Automatically push to GitHub after every entry</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Sync Direction</label>
+                <select class="form-input" id="sync-direction">
+                  <option value="bidirectional">Bidirectional (merge)</option>
+                  <option value="push">Push only (local wins)</option>
+                  <option value="pull">Pull only (cloud wins)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="cloud-panel">
+            <h4>📜 Sync Log</h4>
+            <div class="sync-log" id="sync-log">
+              <div class="log-time">--:--</div> Ready. Configure your GitHub token to begin syncing.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title" style="margin-bottom:10px">📱 Install as App</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">
+            This is a Progressive Web App (PWA). You can install it on your phone or PC for offline access.
+          </p>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div style="background:var(--cream);border-radius:10px;padding:14px">
+              <div style="font-weight:600;font-size:13px;margin-bottom:6px">📲 Android / Chrome</div>
+              <p style="font-size:12px;color:var(--text-muted)">Tap the menu (⋮) → "Add to Home screen" → Install. Works offline.</p>
+            </div>
+            <div style="background:var(--cream);border-radius:10px;padding:14px">
+              <div style="font-weight:600;font-size:13px;margin-bottom:6px">💻 Windows / PC</div>
+              <p style="font-size:12px;color:var(--text-muted)">Click the install icon (⬇️) in the browser address bar, or Chrome menu → "Install Canteen Waste Tracker".</p>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn btn-primary" id="btn-install" onclick="promptInstall()" style="display:none">📥 Install App</button>
+            <span id="install-status" style="font-size:12px;color:var(--text-muted)">Waiting for install prompt...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- MOBILE BOTTOM NAV -->
+<div class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <div class="mob-nav-item active" data-page="dashboard"><span class="mn-icon">📊</span>Dashboard</div>
+    <div class="mob-nav-item" data-page="entry"><span class="mn-icon">✏️</span>Entry</div>
+    <div class="mob-nav-item" data-page="records"><span class="mn-icon">📋</span>Records</div>
+    <div class="mob-nav-item" data-page="analytics"><span class="mn-icon">📈</span>Analytics</div>
+    <div class="mob-nav-item" data-page="cloud"><span class="mn-icon">☁️</span>Sync</div>
+  </div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="install-banner">
+  <span>📲 Install Waste Tracker for offline access</span>
+  <button onclick="acceptInstall()">Install</button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-backdrop" id="modal-delete">
+  <div class="modal">
+    <div class="modal-title">Delete Entry</div>
+    <div class="modal-sub">This will permanently remove this record. Are you sure?</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="background:var(--red);color:#fff" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  PWA SERVICE WORKER (inline blob)
+// ══════════════════════════════════════════════════
+const SW_CODE = `
+self.addEventListener('install', e => {
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(fetch(e.request).catch(() => {
+    return new Response('<h1>Offline</h1><p>You are offline. Data is saved locally and will sync when reconnected.</p>', {
+      headers: {'Content-Type': 'text/html'}
+    });
+  }));
+});
+`;
+
+if ('serviceWorker' in navigator) {
+  const blob = new Blob([SW_CODE], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════
+//  INSTALL PROMPT
+// ══════════════════════════════════════════════════
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('btn-install').style.display = 'inline-flex';
+  document.getElementById('install-status').textContent = 'Ready to install!';
+  document.getElementById('install-banner').classList.add('show');
+});
+
+function promptInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  } else {
+    showToast('Install via your browser menu: Chrome ⋮ → Install app', 'info');
+  }
+}
+function acceptInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  promptInstall();
+}
+
+// ══════════════════════════════════════════════════
+//  DATA — seeded from the Excel file
+// ══════════════════════════════════════════════════
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+
+const STORAGE_KEY = 'canteen_waste_2025';
+const GITHUB_TOKEN_KEY = 'github_token';
+const GIST_ID_KEY = 'gist_id';
+const AUTO_SYNC_KEY = 'auto_sync';
+const SYNC_DIR_KEY = 'sync_direction';
+
+const SEED_DATA = [
+  // ── JANUARY 2025 ──────────────────────────────
+  {date:'2025-01-02',month:'January',mFood:64.85,mPlastic:3,aFood:20,aPlastic:2,nFood:0,nPlastic:0},
+  {date:'2025-01-03',month:'January',mFood:4.2,mPlastic:4,aFood:25.25,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-06',month:'January',mFood:50.25,mPlastic:1.25,aFood:54.6,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-07',month:'January',mFood:48.95,mPlastic:0,aFood:52.7,aPlastic:1,nFood:0,nPlastic:0},
+  {date:'2025-01-08',month:'January',mFood:34.2,mPlastic:2,aFood:69.55,aPlastic:3,nFood:0,nPlastic:0},
+  {date:'2025-01-09',month:'January',mFood:34.3,mPlastic:3.55,aFood:44.8,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-10',month:'January',mFood:42.15,mPlastic:1,aFood:38.65,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-13',month:'January',mFood:150.5,mPlastic:0.5,aFood:104.05,aPlastic:3,nFood:0,nPlastic:0},
+  {date:'2025-01-14',month:'January',mFood:54.15,mPlastic:11.25,aFood:98.35,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-15',month:'January',mFood:61.75,mPlastic:0.95,aFood:77.85,aPlastic:1.59,nFood:0,nPlastic:0},
+  {date:'2025-01-16',month:'January',mFood:31.55,mPlastic:0.9,aFood:19.4,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-20',month:'January',mFood:90.15,mPlastic:1,aFood:87.55,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-21',month:'January',mFood:44.25,mPlastic:0,aFood:63.1,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-22',month:'January',mFood:72.75,mPlastic:0,aFood:46.1,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-23',month:'January',mFood:23.25,mPlastic:1,aFood:64,aPlastic:1.9,nFood:0,nPlastic:0},
+  {date:'2025-01-24',month:'January',mFood:39.55,mPlastic:0,aFood:34.4,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-27',month:'January',mFood:82.9,mPlastic:1.3,aFood:66.75,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-28',month:'January',mFood:53.7,mPlastic:1.2,aFood:39.5,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-29',month:'January',mFood:87,mPlastic:0,aFood:69.5,aPlastic:4,nFood:0,nPlastic:0},
+  {date:'2025-01-30',month:'January',mFood:33.4,mPlastic:0,aFood:7.85,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2025-01-31',month:'January',mFood:53.7,mPlastic:0,aFood:37.4,aPlastic:1.02,nFood:0,nPlastic:0},
+
+  // ── FEBRUARY 2024 ─────────────────────────────
+  {date:'2024-02-05',month:'February',mFood:139.3,mPlastic:1.7,aFood:119.75,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-02-06',month:'February',mFood:43.85,mPlastic:0,aFood:0,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-02-07',month:'February',mFood:27.85,mPlastic:0,aFood:80.5,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-02-08',month:'February',mFood:51,mPlastic:0,aFood:67,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-02-12',month:'February',mFood:8,mPlastic:8,aFood:8,aPlastic:8,nFood:0,nPlastic:0},
+  {date:'2024-02-20',month:'February',mFood:5,mPlastic:5,aFood:5,aPlastic:5,nFood:0,nPlastic:0},
+  {date:'2024-02-28',month:'February',mFood:2,mPlastic:2,aFood:2,aPlastic:2,nFood:0,nPlastic:0},
+
+  // ── MARCH 2024 ────────────────────────────────
+  {date:'2024-03-04',month:'March',mFood:132.2,mPlastic:0.5,aFood:98.5,aPlastic:0.95,nFood:0,nPlastic:0},
+  {date:'2024-03-05',month:'March',mFood:48.6,mPlastic:0,aFood:68.1,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-06',month:'March',mFood:31.6,mPlastic:0,aFood:0,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-07',month:'March',mFood:40.7,mPlastic:2.35,aFood:45.15,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-11',month:'March',mFood:112.25,mPlastic:1,aFood:70.75,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-12',month:'March',mFood:93.68,mPlastic:1.95,aFood:40.41,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-13',month:'March',mFood:93.9,mPlastic:0,aFood:66.5,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-14',month:'March',mFood:37.35,mPlastic:0,aFood:61.55,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-15',month:'March',mFood:23.2,mPlastic:0,aFood:67.1,aPlastic:3.95,nFood:0,nPlastic:0},
+  {date:'2024-03-18',month:'March',mFood:121.7,mPlastic:0.45,aFood:82.45,aPlastic:1.25,nFood:0,nPlastic:0},
+  {date:'2024-03-19',month:'March',mFood:51.4,mPlastic:0.5,aFood:75.15,aPlastic:1,nFood:0,nPlastic:0},
+  {date:'2024-03-20',month:'March',mFood:41.05,mPlastic:0.1,aFood:95.8,aPlastic:0.5,nFood:0,nPlastic:0},
+  {date:'2024-03-21',month:'March',mFood:45.85,mPlastic:0.1,aFood:95.8,aPlastic:1.25,nFood:0,nPlastic:0},
+  {date:'2024-03-22',month:'March',mFood:35.5,mPlastic:1,aFood:79.65,aPlastic:0.8,nFood:0,nPlastic:0},
+  {date:'2024-03-25',month:'March',mFood:157.7,mPlastic:7.7,aFood:84.86,aPlastic:1.95,nFood:0,nPlastic:0},
+  {date:'2024-03-26',month:'March',mFood:51.45,mPlastic:1.2,aFood:71.75,aPlastic:1,nFood:0,nPlastic:0},
+  {date:'2024-03-27',month:'March',mFood:59.45,mPlastic:1,aFood:76.1,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-03-28',month:'March',mFood:34.5,mPlastic:0.9,aFood:94.35,aPlastic:0.9,nFood:0,nPlastic:0},
+  {date:'2024-03-29',month:'March',mFood:24.55,mPlastic:0,aFood:88.05,aPlastic:0.8,nFood:0,nPlastic:0},
+  {date:'2024-04-01',month:'March',mFood:187.9,mPlastic:0,aFood:0,aPlastic:0,nFood:0,nPlastic:0},
+
+  // ── JUNE 2024 ─────────────────────────────────
+  {date:'2024-06-02',month:'June',mFood:53.15,mPlastic:0.08,aFood:141.95,aPlastic:1.45,nFood:0,nPlastic:0},
+  {date:'2024-06-03',month:'June',mFood:27.75,mPlastic:1.45,aFood:162.75,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-06-04',month:'June',mFood:41.7,mPlastic:0,aFood:0,aPlastic:0,nFood:103.8,nPlastic:0},
+  {date:'2024-06-05',month:'June',mFood:91.55,mPlastic:1.8,aFood:149.16,aPlastic:0,nFood:126.19,nPlastic:0},
+  {date:'2024-06-06',month:'June',mFood:72.5,mPlastic:1.9,aFood:160.33,aPlastic:0,nFood:100.3,nPlastic:2.7},
+  {date:'2024-06-07',month:'June',mFood:97.8,mPlastic:0,aFood:0,aPlastic:0,nFood:113,nPlastic:0},
+  {date:'2024-06-10',month:'June',mFood:61.77,mPlastic:0,aFood:0,aPlastic:0,nFood:0,nPlastic:0},
+  {date:'2024-06-12',month:'June',mFood:160.45,mPlastic:2.85,aFood:139.4,aPlastic:3.85,nFood:0,nPlastic:0},
+  {date:'2024-06-13',month:'June',mFood:80.9,mPlastic:3.3,aFood:79,aPlastic:1,nFood:141.16,nPlastic:0},
+  {date:'2024-06-14',month:'June',mFood:17.35,mPlastic:0,aFood:104.5,aPlastic:1.15,nFood:139.09,nPlastic:0},
+  {date:'2024-06-15',month:'June',mFood:83.4,mPlastic:2.6,aFood:102.35,aPlastic:0,nFood:112.39,nPlastic:1.63},
+  {date:'2024-06-16',month:'June',mFood:65.32,mPlastic:1.97,aFood:0,aPlastic:0,nFood:149,nPlastic:0},
+  {date:'2024-06-19',month:'June',mFood:45.85,mPlastic:0,aFood:171.55,aPlastic:2,nFood:0,nPlastic:0},
+  {date:'2024-06-20',month:'June',mFood:19.1,mPlastic:0,aFood:137.45,aPlastic:3.45,nFood:0,nPlastic:0},
+  {date:'2024-06-21',month:'June',mFood:15.6,mPlastic:1.3,aFood:146.5,aPlastic:0,nFood:187,nPlastic:0},
+  {date:'2024-06-22',month:'June',mFood:50.25,mPlastic:2.7,aFood:123.3,aPlastic:1.53,nFood:198.76,nPlastic:0},
+  {date:'2024-06-23',month:'June',mFood:65.95,mPlastic:0.7,aFood:120.25,aPlastic:0,nFood:143.03,nPlastic:0},
+  {date:'2024-06-25',month:'June',mFood:50,mPlastic:1.45,aFood:128.25,aPlastic:1.35,nFood:0,nPlastic:0},
+  {date:'2024-06-26',month:'June',mFood:32.7,mPlastic:2.4,aFood:141.45,aPlastic:1.65,nFood:0,nPlastic:0},
+  {date:'2024-06-27',month:'June',mFood:29.6,mPlastic:0,aFood:184.05,aPlastic:2.6,nFood:104.7,nPlastic:0},
+  {date:'2024-06-28',month:'June',mFood:17.5,mPlastic:0,aFood:127.2,aPlastic:1.75,nFood:118.71,nPlastic:0},
+  {date:'2024-06-29',month:'June',mFood:76.25,mPlastic:1.65,aFood:139.5,aPlastic:0.5,nFood:173.1,nPlastic:0},
+  {date:'2024-06-30',month:'June',mFood:0,mPlastic:0,aFood:0,aPlastic:0,nFood:201.6,nPlastic:0},
+  {date:'2024-07-02',month:'June',mFood:61.7,mPlastic:1.2,aFood:93.7,aPlastic:0.85,nFood:0,nPlastic:0},
+];
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let records = [];
+let deleteTargetId = null;
+let syncState = { status: 'offline', lastSync: null, syncing: false };
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      records = JSON.parse(raw);
+    } else {
+      records = SEED_DATA.map((r, i) => ({ ...r, id: 'seed_' + i }));
+      saveData();
+    }
+  } catch(e) {
+    records = SEED_DATA.map((r, i) => ({ ...r, id: 'seed_' + i }));
+  }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+// ══════════════════════════════════════════════════
+//  GITHUB GIST SYNC
+// ══════════════════════════════════════════════════
+function getToken() { return localStorage.getItem(GITHUB_TOKEN_KEY) || ''; }
+function getGistId() { return localStorage.getItem(GIST_ID_KEY) || ''; }
+function getAutoSync() { return localStorage.getItem(AUTO_SYNC_KEY) === 'true'; }
+function getSyncDir() { return localStorage.getItem(SYNC_DIR_KEY) || 'bidirectional'; }
+
+function setToken(t) { localStorage.setItem(GITHUB_TOKEN_KEY, t); }
+function setGistId(id) { localStorage.setItem(GIST_ID_KEY, id); }
+function setAutoSync(v) { localStorage.setItem(AUTO_SYNC_KEY, v ? 'true' : 'false'); }
+function setSyncDir(d) { localStorage.setItem(SYNC_DIR_KEY, d); }
+
+function logSync(msg, type='ok') {
+  const el = document.getElementById('sync-log');
+  const time = new Date().toLocaleTimeString();
+  const cls = type === 'err' ? 'log-err' : type === 'time' ? 'log-time' : 'log-ok';
+  const line = document.createElement('div');
+  line.innerHTML = '<span class="log-time">' + time + '</span> <span class="' + cls + '">' + msg + '</span>';
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateSyncUI(status, text) {
+  syncState.status = status;
+  const badges = ['sync-badge', 'mobile-sync-badge', 'cloud-sync-badge'];
+  const texts = ['sync-text', 'mobile-sync-text', 'cloud-sync-text'];
+  badges.forEach((id, i) => {
+    const b = document.getElementById(id);
+    if (b) {
+      b.className = 'sync-status ' + status;
+      const t = document.getElementById(texts[i]);
+      if (t) t.textContent = text;
+    }
+  });
+}
+
+async function githubFetch(url, opts={}) {
+  const token = getToken();
+  if (!token) throw new Error('No token');
+  const res = await fetch(url, {
+    ...opts,
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'HTTP ' + res.status);
+  }
+  return res.json();
+}
+
+async function testConnection() {
+  const token = document.getElementById('github-token').value.trim();
+  if (!token) { showToast('Please enter a token', 'error'); return; }
+  updateSyncUI('syncing', 'Testing...');
+  logSync('Testing GitHub connection...', 'time');
+  try {
+    setToken(token);
+    const user = await githubFetch('https://api.github.com/user');
+    logSync('Connected as @' + user.login, 'ok');
+    updateSyncUI('synced', 'Connected');
+    showToast('✓ Connected to GitHub as @' + user.login);
+  } catch(e) {
+    logSync('Connection failed: ' + e.message, 'err');
+    updateSyncUI('error', 'Failed');
+    showToast('Connection failed: ' + e.message, 'error');
+  }
+}
+
+async function createGist() {
+  const token = getToken();
+  if (!token) { showToast('Enter and test your token first', 'error'); return; }
+  updateSyncUI('syncing', 'Creating...');
+  logSync('Creating private Gist...', 'time');
+  try {
+    const payload = {
+      description: 'Canteen Waste Tracker Backup',
+      public: false,
+      files: {
+        'canteen_waste_data.json': {
+          content: JSON.stringify({ records, exportedAt: new Date().toISOString(), version: 2 }, null, 2)
+        }
+      }
+    };
+    const gist = await githubFetch('https://api.github.com/gists', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    setGistId(gist.id);
+    document.getElementById('gist-id').value = gist.id;
+    logSync('Gist created: ' + gist.id, 'ok');
+    updateSyncUI('synced', 'Ready');
+    showToast('✓ Gist created and linked');
+  } catch(e) {
+    logSync('Create failed: ' + e.message, 'err');
+    updateSyncUI('error', 'Error');
+    showToast('Failed: ' + e.message, 'error');
+  }
+}
+
+async function syncNow() {
+  const token = getToken();
+  const gistId = getGistId();
+  if (!token) { showToast('Configure GitHub token first', 'error'); return; }
+  if (!gistId) { showToast('Create or enter a Gist ID first', 'error'); return; }
+
+  updateSyncUI('syncing', 'Syncing...');
+  syncState.syncing = true;
+  logSync('Starting sync...', 'time');
+
+  try {
+    const dir = getSyncDir();
+
+    if (dir === 'push') {
+      // Local wins — overwrite gist
+      await pushToGist(gistId);
+    } else if (dir === 'pull') {
+      // Cloud wins — overwrite local
+      await pullFromGist(gistId);
+    } else {
+      // Bidirectional — merge
+      await pullFromGist(gistId, true); // merge = true
+    }
+
+    syncState.lastSync = new Date().toISOString();
+    updateSyncUI('synced', 'Synced ' + new Date().toLocaleTimeString());
+    logSync('Sync complete.', 'ok');
+    showToast('✓ Sync complete');
+    renderDashboard();
+    if (document.getElementById('page-records').classList.contains('active')) renderRecords();
+    if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+  } catch(e) {
+    logSync('Sync error: ' + e.message, 'err');
+    updateSyncUI('error', 'Sync failed');
+    showToast('Sync failed: ' + e.message, 'error');
+  } finally {
+    syncState.syncing = false;
+  }
+}
+
+async function pushToGist(gistId) {
+  const payload = {
+    files: {
+      'canteen_waste_data.json': {
+        content: JSON.stringify({ records, exportedAt: new Date().toISOString(), version: 2 }, null, 2)
+      }
+    }
+  };
+  await githubFetch('https://api.github.com/gists/' + gistId, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+  logSync('Pushed ' + records.length + ' records to Gist.', 'ok');
+}
+
+async function pullFromGist(gistId, merge=false) {
+  const gist = await githubFetch('https://api.github.com/gists/' + gistId);
+  const file = gist.files['canteen_waste_data.json'];
+  if (!file) throw new Error('Gist file not found');
+
+  const data = JSON.parse(file.content);
+  if (!data.records || !Array.isArray(data.records)) throw new Error('Invalid data format');
+
+  if (merge) {
+    // Merge: add missing records, update existing by date
+    const localMap = new Map(records.map(r => [r.date + '|' + r.month, r]));
+    let added = 0, updated = 0;
+    data.records.forEach(r => {
+      const key = r.date + '|' + r.month;
+      if (!localMap.has(key)) {
+        records.push({ ...r, id: 'cloud_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) });
+        added++;
+      } else {
+        // Cloud wins for existing — update values
+        const local = localMap.get(key);
+        local.mFood = r.mFood; local.mPlastic = r.mPlastic;
+        local.aFood = r.aFood; local.aPlastic = r.aPlastic;
+        local.nFood = r.nFood; local.nPlastic = r.nPlastic;
+        updated++;
+      }
+    });
+    saveData();
+    logSync('Merged: +' + added + ' new, ~' + updated + ' updated.', 'ok');
+  } else {
+    records = data.records.map((r, i) => ({ ...r, id: r.id || 'cloud_' + i }));
+    saveData();
+    logSync('Pulled ' + records.length + ' records from Gist.', 'ok');
+  }
+}
+
+async function autoSyncIfEnabled() {
+  if (getAutoSync() && getToken() && getGistId() && !syncState.syncing) {
+    await syncNow();
+  }
+}
+
+function toggleAutoSync() {
+  const checked = document.getElementById('auto-sync').checked;
+  setAutoSync(checked);
+  logSync('Auto-sync ' + (checked ? 'enabled' : 'disabled'), 'time');
+}
+
+// ══════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════
+function r2(v) { return Math.round(v * 100) / 100; }
+function fmt(v) { return (v || 0).toFixed(2); }
+
+function totalFood(rec) { return r2((rec.mFood||0) + (rec.aFood||0) + (rec.nFood||0)); }
+function totalPlastic(rec) { return r2((rec.mPlastic||0) + (rec.aPlastic||0) + (rec.nPlastic||0)); }
+
+function getMonthRecords(month) {
+  return records.filter(r => r.month === month);
+}
+
+function monthTotals(month) {
+  const recs = getMonthRecords(month).filter(r => totalFood(r) + totalPlastic(r) > 0);
+  let mFood=0,mPlastic=0,aFood=0,aPlastic=0,nFood=0,nPlastic=0;
+  recs.forEach(r => {
+    mFood += r.mFood||0; mPlastic += r.mPlastic||0;
+    aFood += r.aFood||0; aPlastic += r.aPlastic||0;
+    nFood += r.nFood||0; nPlastic += r.nPlastic||0;
+  });
+  return { mFood:r2(mFood), mPlastic:r2(mPlastic), aFood:r2(aFood), aPlastic:r2(aPlastic),
+           nFood:r2(nFood), nPlastic:r2(nPlastic),
+           totalFood:r2(mFood+aFood+nFood), totalPlastic:r2(mPlastic+aPlastic+nPlastic),
+           days: recs.length };
+}
+
+function allTotals() {
+  let tf=0, tp=0;
+  records.forEach(r => { tf += totalFood(r); tp += totalPlastic(r); });
+  return { food: r2(tf), plastic: r2(tp) };
+}
+
+// ══════════════════════════════════════════════════
+//  PAGE NAVIGATION
+// ══════════════════════════════════════════════════
+const PAGE_TITLES = {
+  dashboard:'Dashboard', entry:'Daily Entry', records:'Records',
+  analytics:'Analytics', export:'Export', cloud:'Sync & Backup'
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('[data-page="'+name+'"]').forEach(el => el.classList.add('active'));
+  document.getElementById('topbar-title').textContent = PAGE_TITLES[name] || name;
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'records') renderRecords();
+  if (name === 'analytics') renderAnalytics();
+  if (name === 'cloud') renderCloudPage();
+
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════
+function renderDashboard() {
+  renderKPIs();
+  renderBarCharts();
+  renderRecentEntries();
+  renderInsights();
+}
+
+function makeRing(pct, color, label) {
+  const r = 26, cx = 32, cy = 32;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return `
+    <div class="kpi-ring-wrap">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eee" stroke-width="5"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+          stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+      </svg>
+      <div class="kpi-ring-center" style="color:${color}">${Math.round(pct)}%</div>
+    </div>`;
+}
+
+function renderKPIs() {
+  const tot = allTotals();
+  const allWaste = tot.food + tot.plastic;
+  const foodPct = allWaste ? (tot.food / allWaste * 100) : 0;
+  const plasticPct = allWaste ? (tot.plastic / allWaste * 100) : 0;
+
+  const monthsWithData = MONTHS.filter(m => monthTotals(m).days > 0);
+  const bestMonth = monthsWithData.reduce((best, m) => {
+    const t = monthTotals(m); const prev = monthTotals(best);
+    return t.totalFood < prev.totalFood ? m : best;
+  }, monthsWithData[0] || 'January');
+
+  const withData = records.filter(r => totalFood(r) > 0);
+  const peakRec = withData.reduce((p, c) => totalFood(c) > totalFood(p) ? c : p, withData[0] || {});
+
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = `
+    <div class="kpi-card">
+      ${makeRing(foodPct, '#2D5C45', '')}
+      <div class="kpi-info">
+        <div class="kpi-val">${tot.food.toLocaleString()}</div>
+        <div class="kpi-unit">kg total</div>
+        <div class="kpi-label">🥗 Total Food Waste</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      ${makeRing(plasticPct, '#D94F3D', '')}
+      <div class="kpi-info">
+        <div class="kpi-val">${tot.plastic.toLocaleString()}</div>
+        <div class="kpi-unit">kg total</div>
+        <div class="kpi-label">♻️ Total Plastic Waste</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-ring-wrap" style="background:rgba(232,164,48,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px">🏆</div>
+      <div class="kpi-info">
+        <div class="kpi-val" style="font-size:17px">${bestMonth || '—'}</div>
+        <div class="kpi-label">Lowest waste month</div>
+        <div class="kpi-trend trend-dn">✓ Best performer</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-ring-wrap" style="background:rgba(217,79,61,.08);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px">⚠️</div>
+      <div class="kpi-info">
+        <div class="kpi-val" style="font-size:17px">${peakRec.date ? peakRec.date.slice(5) : '—'}</div>
+        <div class="kpi-label">Peak waste day</div>
+        <div class="kpi-trend trend-up">${peakRec.date ? fmt(totalFood(peakRec))+'kg food' : 'No data'}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderBarCharts() {
+  const monthsWithData = MONTHS.filter(m => {
+    const t = monthTotals(m);
+    return t.totalFood + t.totalPlastic > 0;
+  });
+
+  if (!monthsWithData.length) {
+    document.getElementById('chart-food').innerHTML = '<div class="empty-state" style="height:100%"><div>No data yet</div></div>';
+    document.getElementById('chart-plastic').innerHTML = '<div class="empty-state" style="height:100%"><div>No data yet</div></div>';
+    return;
+  }
+
+  const maxFood = Math.max(...monthsWithData.map(m => monthTotals(m).totalFood));
+  const maxPlastic = Math.max(...monthsWithData.map(m => monthTotals(m).totalPlastic));
+
+  function buildChart(containerId, getVal, colors, keys) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    monthsWithData.forEach(m => {
+      const t = monthTotals(m);
+      const vals = keys.map(k => t[k] || 0);
+      const total = vals.reduce((a,b) => a+b, 0);
+      const maxV = containerId === 'chart-food' ? maxFood : maxPlastic;
+      const heightPct = maxV ? (total / maxV * 100) : 0;
+
+      const group = document.createElement('div');
+      group.className = 'bar-group';
+      group.title = m + ': ' + total.toFixed(2) + 'kg';
+
+      const stack = document.createElement('div');
+      stack.className = 'bar-stack';
+      stack.style.height = heightPct + '%';
+
+      keys.forEach((k, i) => {
+        const v = t[k] || 0;
+        if (v === 0) return;
+        const seg = document.createElement('div');
+        seg.className = 'bar-seg';
+        seg.style.background = colors[i];
+        seg.style.flex = v;
+        seg.title = k + ': ' + v.toFixed(2) + 'kg';
+        stack.appendChild(seg);
+      });
+
+      const label = document.createElement('div');
+      label.className = 'bar-label';
+      label.textContent = m.slice(0,3);
+
+      const val = document.createElement('div');
+      val.className = 'bar-val';
+      val.textContent = total.toFixed(0);
+
+      group.appendChild(val);
+      group.appendChild(stack);
+      group.appendChild(label);
+      container.appendChild(group);
+    });
+  }
+
+  buildChart('chart-food', null, ['#2D5C45','#E8A430','#1B3A2D'], ['mFood','aFood','nFood']);
+  buildChart('chart-plastic', null, ['#D94F3D','#F4C46A','#6B7B74'], ['mPlastic','aPlastic','nPlastic']);
+}
+
+function renderRecentEntries() {
+  const sorted = [...records]
+    .filter(r => totalFood(r) + totalPlastic(r) > 0)
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .slice(0, 6);
+
+  const container = document.getElementById('recent-entries');
+  if (!sorted.length) {
+    container.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><div class="es-title">No entries yet</div><div class="es-sub">Start by adding a daily entry</div></div>';
+    return;
+  }
+
+  container.innerHTML = sorted.map(r => `
+    <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:10px">
+      <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-num);min-width:70px">${r.date}</div>
+      <div style="flex:1;font-size:13px;font-weight:500">${r.month}</div>
+      <div style="font-family:var(--font-num);font-size:13px;font-weight:600;color:var(--forest)">${fmt(totalFood(r))} kg</div>
+      <div style="font-family:var(--font-num);font-size:12px;color:var(--red)">${fmt(totalPlastic(r))} kg</div>
+    </div>
+  `).join('');
+}
+
+function renderInsights() {
+  const allRecs = records.filter(r => totalFood(r) > 0);
+  const tot = allTotals();
+  const days = allRecs.length;
+  const avgFoodPerDay = days ? r2(tot.food / days) : 0;
+  const avgPlasticPerDay = days ? r2(tot.plastic / days) : 0;
+
+  let highestDay = {food: 0, date: ''};
+  allRecs.forEach(r => { if (totalFood(r) > highestDay.food) highestDay = {food: totalFood(r), date: r.date}; });
+
+  const morningFood = r2(allRecs.reduce((s,r) => s + (r.mFood||0), 0));
+  const afterFood = r2(allRecs.reduce((s,r) => s + (r.aFood||0), 0));
+  const nightFood = r2(allRecs.reduce((s,r) => s + (r.nFood||0), 0));
+  const peakShift = morningFood >= afterFood && morningFood >= nightFood ? 'Morning' :
+                    afterFood >= nightFood ? 'Afternoon' : 'Night';
+
+  document.getElementById('insights-panel').innerHTML = `
+    <div class="insight-item"><span class="ins-label">Avg food waste/day</span><span class="ins-val">${avgFoodPerDay} kg</span></div>
+    <div class="insight-item"><span class="ins-label">Avg plastic waste/day</span><span class="ins-val">${avgPlasticPerDay} kg</span></div>
+    <div class="insight-item"><span class="ins-label">Highest single day</span><span class="ins-val">${highestDay.food} kg (${highestDay.date||'—'})</span></div>
+    <div class="insight-item"><span class="ins-label">Peak waste shift</span><span class="ins-val">${peakShift}</span></div>
+    <div class="insight-item"><span class="ins-label">Total days recorded</span><span class="ins-val">${days} days</span></div>
+    <div class="insight-item"><span class="ins-label">Food : Plastic ratio</span><span class="ins-val">${tot.plastic ? (tot.food/tot.plastic).toFixed(1) : '∞'} : 1</span></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════
+//  RECORDS
+// ══════════════════════════════════════════════════
+function renderRecords() {
+  const filterMonth = document.getElementById('filter-month').value;
+  let filtered = records.filter(r => totalFood(r) + totalPlastic(r) > 0);
+  if (filterMonth) filtered = filtered.filter(r => r.month === filterMonth);
+  filtered.sort((a,b) => b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('records-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="es-icon">📭</div><div class="es-title">No records found</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => `
+    <tr>
+      <td style="white-space:nowrap">${r.date}</td>
+      <td>${r.month}</td>
+      <td class="num">${fmt(r.mFood)}</td>
+      <td class="num">${fmt(r.mPlastic)}</td>
+      <td class="num">${fmt(r.aFood)}</td>
+      <td class="num">${fmt(r.aPlastic)}</td>
+      <td class="num">${fmt(r.nFood)}</td>
+      <td class="num">${fmt(r.nPlastic)}</td>
+      <td class="num" style="font-weight:600;color:var(--forest)">${fmt(totalFood(r))}</td>
+      <td class="num" style="font-weight:600;color:var(--red)">${fmt(totalPlastic(r))}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editRecord('${r.id}')" style="padding:4px 8px;font-size:11px">✏️</button>
+        <button class="btn btn-sm" style="background:#fff2f0;color:var(--red);border:1px solid #ffd6d1;padding:4px 8px;font-size:11px" onclick="deleteRecord('${r.id}')">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  ANALYTICS
+// ══════════════════════════════════════════════════
+function renderAnalytics() {
+  const tbody = document.getElementById('analytics-tbody');
+  const activeMonths = MONTHS.filter(m => monthTotals(m).days > 0);
+
+  tbody.innerHTML = activeMonths.map(m => {
+    const t = monthTotals(m);
+    const recs = getMonthRecords(m).filter(r => totalFood(r) > 0);
+    const avgFd = t.days ? r2(t.totalFood / t.days) : 0;
+    const avgPl = t.days ? r2(t.totalPlastic / t.days) : 0;
+    const peak = recs.reduce((p,c) => totalFood(c) > totalFood(p) ? c : p, recs[0] || {});
+    return `
+      <tr>
+        <td style="font-weight:500">${m}</td>
+        <td class="num">${t.days}</td>
+        <td class="num" style="color:var(--forest);font-weight:600">${fmt(t.totalFood)}</td>
+        <td class="num" style="color:var(--red);font-weight:600">${fmt(t.totalPlastic)}</td>
+        <td class="num" style="font-weight:700">${fmt(t.totalFood + t.totalPlastic)}</td>
+        <td class="num">${fmt(avgFd)}</td>
+        <td class="num">${fmt(avgPl)}</td>
+        <td class="num" style="font-size:12px">${peak.date || '—'}</td>
+      </tr>`;
+  }).join('');
+
+  const tot = allTotals();
+  const totalDays = activeMonths.reduce((s,m) => s + monthTotals(m).days, 0);
+  tbody.innerHTML += `
+    <tr class="grand-total">
+      <td>Grand Total</td>
+      <td class="num">${totalDays}</td>
+      <td class="num">${fmt(tot.food)}</td>
+      <td class="num">${fmt(tot.plastic)}</td>
+      <td class="num">${fmt(tot.food + tot.plastic)}</td>
+      <td class="num">${totalDays ? fmt(r2(tot.food/totalDays)) : '0.00'}</td>
+      <td class="num">${totalDays ? fmt(r2(tot.plastic/totalDays)) : '0.00'}</td>
+      <td class="num">—</td>
+    </tr>`;
+
+  renderRatioChart(activeMonths);
+  renderShiftBreakdown();
+}
+
+function renderRatioChart(months) {
+  const container = document.getElementById('chart-ratio');
+  container.innerHTML = '';
+  const maxTotal = Math.max(...months.map(m => {
+    const t = monthTotals(m);
+    return t.totalFood + t.totalPlastic;
+  }));
+
+  months.forEach(m => {
+    const t = monthTotals(m);
+    const total = t.totalFood + t.totalPlastic;
+    const hPct = maxTotal ? (total / maxTotal * 90) : 0;
+
+    const group = document.createElement('div');
+    group.className = 'bar-group';
+
+    const stack = document.createElement('div');
+    stack.className = 'bar-stack';
+    stack.style.height = hPct + '%';
+
+    const segP = document.createElement('div');
+    segP.className = 'bar-seg';
+    segP.style.background = '#D94F3D';
+    segP.style.flex = t.totalPlastic || 0;
+    segP.title = 'Plastic: ' + t.totalPlastic.toFixed(2);
+
+    const segF = document.createElement('div');
+    segF.className = 'bar-seg';
+    segF.style.background = '#2D5C45';
+    segF.style.flex = t.totalFood || 0;
+    segF.title = 'Food: ' + t.totalFood.toFixed(2);
+
+    stack.appendChild(segP);
+    stack.appendChild(segF);
+
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = m.slice(0,3);
+
+    const val = document.createElement('div');
+    val.className = 'bar-val';
+    val.textContent = total.toFixed(0);
+
+    group.appendChild(val);
+    group.appendChild(stack);
+    group.appendChild(label);
+    container.appendChild(group);
+  });
+}
+
+function renderShiftBreakdown() {
+  const allRecs = records.filter(r => totalFood(r) + totalPlastic(r) > 0);
+  const mFood = r2(allRecs.reduce((s,r) => s+(r.mFood||0), 0));
+  const aFood = r2(allRecs.reduce((s,r) => s+(r.aFood||0), 0));
+  const nFood = r2(allRecs.reduce((s,r) => s+(r.nFood||0), 0));
+  const mPl = r2(allRecs.reduce((s,r) => s+(r.mPlastic||0), 0));
+  const aPl = r2(allRecs.reduce((s,r) => s+(r.aPlastic||0), 0));
+  const nPl = r2(allRecs.reduce((s,r) => s+(r.nPlastic||0), 0));
+  const totalAll = mFood+aFood+nFood+mPl+aPl+nPl || 1;
+
+  const rows = [
+    {label:'Morning', food:mFood, plastic:mPl, color:'#2D5C45'},
+    {label:'Afternoon', food:aFood, plastic:aPl, color:'#E8A430'},
+    {label:'Night', food:nFood, plastic:nPl, color:'#1B3A2D'},
+  ];
+
+  document.getElementById('shift-breakdown').innerHTML = rows.map(row => {
+    const total = row.food + row.plastic;
+    const pct = Math.round(total / totalAll * 100);
+    return `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+          <span style="font-weight:500">${row.label}</span>
+          <span style="font-family:var(--font-num);font-size:12px;color:var(--text-muted)">${total.toFixed(2)} kg · ${pct}%</span>
+        </div>
+        <div style="height:10px;background:#eee;border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${row.color};border-radius:99px;transition:width .5s"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:4px;font-size:11px;color:var(--text-muted)">
+          <span>Food: ${row.food.toFixed(2)} kg</span>
+          <span>Plastic: ${row.plastic.toFixed(2)} kg</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  CLOUD PAGE
+// ══════════════════════════════════════════════════
+function renderCloudPage() {
+  document.getElementById('github-token').value = getToken();
+  document.getElementById('gist-id').value = getGistId();
+  document.getElementById('auto-sync').checked = getAutoSync();
+  document.getElementById('sync-direction').value = getSyncDir();
+
+  if (getToken() && getGistId()) {
+    updateSyncUI('synced', 'Ready');
+  } else if (getToken()) {
+    updateSyncUI('synced', 'Token set');
+  } else {
+    updateSyncUI('offline', 'Not configured');
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  ENTRY FORM
+// ══════════════════════════════════════════════════
+function clearEntryForm() {
+  document.getElementById('m-food').value='';
+  document.getElementById('m-plastic').value='';
+  document.getElementById('a-food').value='';
+  document.getElementById('a-plastic').value='';
+  document.getElementById('n-food').value='';
+  document.getElementById('n-plastic').value='';
+  document.getElementById('entry-preview').textContent='';
+}
+
+function saveEntry() {
+  const dateEl = document.getElementById('entry-date');
+  const monthEl = document.getElementById('entry-month');
+
+  const date = dateEl.value;
+  const month = monthEl.value;
+  if (!date) { showToast('Please select a date','error'); return; }
+
+  const mFood = parseFloat(document.getElementById('m-food').value) || 0;
+  const mPl   = parseFloat(document.getElementById('m-plastic').value) || 0;
+  const aFood = parseFloat(document.getElementById('a-food').value) || 0;
+  const aPl   = parseFloat(document.getElementById('a-plastic').value) || 0;
+  const nFood = parseFloat(document.getElementById('n-food').value) || 0;
+  const nPl   = parseFloat(document.getElementById('n-plastic').value) || 0;
+
+  if (mFood+mPl+aFood+aPl+nFood+nPl === 0) {
+    showToast('Please enter at least one value', 'error'); return;
+  }
+
+  const existing = records.findIndex(r => r.date === date && r.month === month);
+  const rec = { date, month, mFood, mPlastic:mPl, aFood, aPlastic:aPl, nFood, nPlastic:nPl };
+
+  if (existing >= 0) {
+    rec.id = records[existing].id;
+    records[existing] = rec;
+    showToast('✓ Entry updated');
+  } else {
+    rec.id = 'entry_' + Date.now();
+    records.push(rec);
+    showToast('✓ Entry saved');
+  }
+
+  saveData();
+  clearEntryForm();
+  renderDashboard();
+
+  // Auto-sync if enabled
+  autoSyncIfEnabled();
+}
+
+function editRecord(id) {
+  const rec = records.find(r => r.id === id);
+  if (!rec) return;
+
+  document.getElementById('entry-date').value = rec.date;
+  document.getElementById('entry-month').value = rec.month;
+  document.getElementById('m-food').value = rec.mFood || '';
+  document.getElementById('m-plastic').value = rec.mPlastic || '';
+  document.getElementById('a-food').value = rec.aFood || '';
+  document.getElementById('a-plastic').value = rec.aPlastic || '';
+  document.getElementById('n-food').value = rec.nFood || '';
+  document.getElementById('n-plastic').value = rec.nPlastic || '';
+
+  showPage('entry');
+  showToast('📝 Edit mode — modify and save');
+}
+
+// ══════════════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════════════
+function deleteRecord(id) {
+  deleteTargetId = id;
+  document.getElementById('modal-delete').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-delete').classList.remove('open');
+  deleteTargetId = null;
+}
+function confirmDelete() {
+  if (!deleteTargetId) return;
+  records = records.filter(r => r.id !== deleteTargetId);
+  saveData();
+  closeModal();
+  renderRecords();
+  showToast('🗑️ Entry deleted');
+  autoSyncIfEnabled();
+}
+
+// ══════════════════════════════════════════════════
+//  EXPORTS
+// ══════════════════════════════════════════════════
+function exportExcel() {
+  const scope = document.getElementById('xl-scope').value;
+  const monthFilter = document.getElementById('xl-month').value;
+  const wb = XLSX.utils.book_new();
+
+  const months = scope === 'all' ? MONTHS : [monthFilter];
+
+  months.forEach(m => {
+    const recs = getMonthRecords(m).filter(r => totalFood(r) + totalPlastic(r) > 0)
+                                   .sort((a,b) => a.date.localeCompare(b.date));
+    if (!recs.length) return;
+
+    const rows = [
+      ['Date','Food Waste AM (kg)','Plastic AM (kg)','Food Waste PM (kg)','Plastic PM (kg)',
+       'Food Waste Night (kg)','Plastic Night (kg)','Total Food (kg)','Total Plastic (kg)','Grand Total (kg)']
+    ];
+    let sumF=0, sumP=0;
+    recs.forEach(r => {
+      const tf = totalFood(r), tp = totalPlastic(r);
+      sumF += tf; sumP += tp;
+      rows.push([r.date, r.mFood||0, r.mPlastic||0, r.aFood||0, r.aPlastic||0,
+                 r.nFood||0, r.nPlastic||0, tf, tp, tf+tp]);
+    });
+    rows.push([]);
+    rows.push(['TOTAL','','','','','','',r2(sumF),r2(sumP),r2(sumF+sumP)]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:12},{wch:18},{wch:14},{wch:18},{wch:14},{wch:18},{wch:14},{wch:14},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, m.slice(0,31));
+  });
+
+  const summaryRows = [['Month','Days','Total Food (kg)','Total Plastic (kg)','Grand Total (kg)','Avg Food/Day','Avg Plastic/Day']];
+  let totFood=0, totPl=0, totDays=0;
+  MONTHS.forEach(m => {
+    const t = monthTotals(m);
+    if (!t.days) return;
+    summaryRows.push([m, t.days, t.totalFood, t.totalPlastic, r2(t.totalFood+t.totalPlastic),
+                      r2(t.totalFood/t.days), r2(t.totalPlastic/t.days)]);
+    totFood += t.totalFood; totPl += t.totalPlastic; totDays += t.days;
+  });
+  summaryRows.push([]);
+  summaryRows.push(['GRAND TOTAL', totDays, r2(totFood), r2(totPl), r2(totFood+totPl),
+                    totDays ? r2(totFood/totDays) : 0, totDays ? r2(totPl/totDays) : 0]);
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{wch:12},{wch:8},{wch:16},{wch:18},{wch:16},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  XLSX.writeFile(wb, `Canteen_Waste_${scope === 'all' ? '2024-2025' : monthFilter}.xlsx`);
+  showToast('✓ Excel downloaded');
+}
+
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const type = document.getElementById('pdf-type').value;
+  const monthFilter = document.getElementById('pdf-month').value;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  const pageW = 210, margin = 16;
+  let y = margin;
+
+  function addHeader(title, sub) {
+    doc.setFillColor(27,58,45);
+    doc.rect(0, 0, pageW, 32, 'F');
+    doc.setTextColor(232,164,48);
+    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('BSG CANTEEN — WASTE REPORT', margin, 14);
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(11); doc.setFont('helvetica','normal');
+    doc.text(title, margin, 22);
+    doc.setFontSize(9); doc.setTextColor(200,220,210);
+    doc.text(sub + '  ·  Generated: ' + new Date().toLocaleDateString(), margin, 28);
+    y = 42;
+  }
+
+  function sectionTitle(text) {
+    if (y > 255) { doc.addPage(); y = 16; }
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(27,58,45);
+    doc.text(text.toUpperCase(), margin, y);
+    doc.setDrawColor(200,220,210); doc.line(margin, y+2, pageW-margin, y+2);
+    y += 8;
+  }
+
+  function kpiRow(label, val, unit) {
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,110,105);
+    doc.text(label, margin, y);
+    doc.setFont('helvetica','bold'); doc.setTextColor(27,58,45);
+    doc.text(val + ' ' + unit, 100, y);
+    y += 6;
+  }
+
+  function tableRow(cols, widths, isBold, isAlt) {
+    if (y > 268) { doc.addPage(); y = 16; }
+    if (isAlt) { doc.setFillColor(245,240,232); doc.rect(margin, y-4, pageW-margin*2, 7, 'F'); }
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+    doc.setFontSize(8); doc.setTextColor(isBold ? 27 : 50, isBold ? 58 : 60, isBold ? 45 : 55);
+    let x = margin;
+    cols.forEach((c, i) => {
+      const w = widths[i];
+      const align = i > 0 ? 'right' : 'left';
+      if (align === 'right') {
+        doc.text(String(c), x + w, y, {align:'right'});
+      } else {
+        doc.text(String(c), x, y);
+      }
+      x += w;
+    });
+    y += 6;
+  }
+
+  if (type === 'annual') {
+    addHeader('Annual Summary Report', 'Canteen Waste Data 2024–2025');
+
+    sectionTitle('Year at a Glance');
+    const tot = allTotals();
+    const totalDays = MONTHS.reduce((s,m) => s + monthTotals(m).days, 0);
+    kpiRow('Total Food Waste', tot.food.toLocaleString(), 'kg');
+    kpiRow('Total Plastic Waste', tot.plastic.toLocaleString(), 'kg');
+    kpiRow('Combined Total', (tot.food+tot.plastic).toFixed(2), 'kg');
+    kpiRow('Total Days Recorded', totalDays.toString(), 'days');
+    kpiRow('Average Food/Day', totalDays ? r2(tot.food/totalDays).toFixed(2) : '0.00', 'kg');
+    kpiRow('Average Plastic/Day', totalDays ? r2(tot.plastic/totalDays).toFixed(2) : '0.00', 'kg');
+    y += 4;
+
+    sectionTitle('Monthly Breakdown');
+    const hdrs = ['Month','Days','Food (kg)','Plastic (kg)','Total (kg)','Avg F/Day','Avg P/Day'];
+    const ws = [28,12,26,26,24,24,24];
+    tableRow(hdrs, ws, true, false);
+    doc.setDrawColor(200,220,210); doc.line(margin, y-3, pageW-margin, y-3);
+
+    let tf=0,tp=0,td=0;
+    MONTHS.forEach((m,i) => {
+      const t = monthTotals(m);
+      if (!t.days) return;
+      tableRow([m, t.days, t.totalFood.toFixed(2), t.totalPlastic.toFixed(2),
+                (t.totalFood+t.totalPlastic).toFixed(2),
+                (t.totalFood/t.days).toFixed(2), (t.totalPlastic/t.days).toFixed(2)],
+               ws, false, i%2===0);
+      tf+=t.totalFood; tp+=t.totalPlastic; td+=t.days;
+    });
+    doc.setDrawColor(200,220,210); doc.line(margin, y-2, pageW-margin, y-2); y+=2;
+    tableRow(['TOTAL', td, r2(tf).toFixed(2), r2(tp).toFixed(2), r2(tf+tp).toFixed(2),
+              td?(r2(tf/td)).toFixed(2):'0.00', td?(r2(tp/td)).toFixed(2):'0.00'],
+             ws, true, false);
+
+  } else {
+    const t = monthTotals(monthFilter);
+    addHeader(monthFilter + ' Report', 'Canteen Waste — ' + monthFilter + ' 2024/2025');
+
+    sectionTitle('Monthly Summary');
+    kpiRow('Total Food Waste', t.totalFood.toFixed(2), 'kg');
+    kpiRow('Total Plastic Waste', t.totalPlastic.toFixed(2), 'kg');
+    kpiRow('Combined Total', (t.totalFood+t.totalPlastic).toFixed(2), 'kg');
+    kpiRow('Days Recorded', t.days.toString(), 'days');
+    kpiRow('Morning Food', t.mFood.toFixed(2), 'kg');
+    kpiRow('Afternoon Food', t.aFood.toFixed(2), 'kg');
+    kpiRow('Night Food', t.nFood.toFixed(2), 'kg');
+    y += 4;
+
+    sectionTitle('Daily Entries');
+    const recs = getMonthRecords(monthFilter)
+      .filter(r => totalFood(r)+totalPlastic(r)>0)
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    const hdrs = ['Date','Food AM','Plastic AM','Food PM','Plastic PM','Food Night','Pl Night','Total F','Total P'];
+    const ws = [22,18,18,18,18,18,18,18,18];
+    tableRow(hdrs, ws, true, false);
+    doc.setDrawColor(200,220,210); doc.line(margin, y-3, pageW-margin, y-3);
+
+    recs.forEach((r,i) => {
+      tableRow([r.date, fmt(r.mFood), fmt(r.mPlastic), fmt(r.aFood), fmt(r.aPlastic),
+                fmt(r.nFood), fmt(r.nPlastic), fmt(totalFood(r)), fmt(totalPlastic(r))],
+               ws, false, i%2===0);
+    });
+    doc.setDrawColor(200,220,210); doc.line(margin, y-2, pageW-margin, y-2); y+=2;
+    tableRow(['TOTAL','','','','','','',t.totalFood.toFixed(2),t.totalPlastic.toFixed(2)],
+             ws, true, false);
+  }
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i=1; i<=pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(160,170,165); doc.setFont('helvetica','normal');
+    doc.text('BSG Canteen Waste Tracker · Confidential', margin, 290);
+    doc.text('Page ' + i + ' of ' + pageCount, pageW-margin, 290, {align:'right'});
+  }
+
+  const name = type === 'annual' ? 'Canteen_Waste_Annual_Report.pdf' : 'Canteen_Waste_' + monthFilter + '.pdf';
+  doc.save(name);
+  showToast('✓ PDF downloaded');
+}
+
+// ══════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// ══════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ══════════════════════════════════════════════════
+
+// Nav
+document.querySelectorAll('[data-page]').forEach(el => {
+  el.addEventListener('click', () => showPage(el.dataset.page));
+});
+
+// Shift tabs
+document.querySelectorAll('.shift-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.shift-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.shift-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('shift-' + tab.dataset.shift).classList.add('active');
+  });
+});
+
+// PDF type toggle
+document.getElementById('pdf-type').addEventListener('change', function() {
+  document.getElementById('pdf-month-wrap').style.display = this.value === 'monthly' ? '' : 'none';
+});
+document.getElementById('pdf-type').dispatchEvent(new Event('change'));
+
+document.getElementById('xl-scope').addEventListener('change', function() {
+  document.getElementById('xl-month-wrap').style.display = this.value === 'month' ? '' : 'none';
+});
+document.getElementById('xl-scope').dispatchEvent(new Event('change'));
+
+// Modal backdrop
+document.getElementById('modal-delete').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Auto-set month when date changes
+document.getElementById('entry-date').addEventListener('change', function() {
+  const d = new Date(this.value + 'T00:00:00');
+  if (!isNaN(d)) {
+    document.getElementById('entry-month').value = MONTHS[d.getMonth()];
+  }
+});
+
+// Entry preview
+['m-food','m-plastic','a-food','a-plastic','n-food','n-plastic'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePreview);
+});
+
+function updatePreview() {
+  const mF = parseFloat(document.getElementById('m-food').value)||0;
+  const mP = parseFloat(document.getElementById('m-plastic').value)||0;
+  const aF = parseFloat(document.getElementById('a-food').value)||0;
+  const aP = parseFloat(document.getElementById('a-plastic').value)||0;
+  const nF = parseFloat(document.getElementById('n-food').value)||0;
+  const nP = parseFloat(document.getElementById('n-plastic').value)||0;
+  const totalF = r2(mF+aF+nF), totalP = r2(mP+aP+nP);
+  document.getElementById('entry-preview').textContent =
+    totalF || totalP ? 'Total: Food ' + totalF + 'kg · Plastic ' + totalP + 'kg' : '';
+}
+
+// Sync direction
+document.getElementById('sync-direction').addEventListener('change', function() {
+  setSyncDir(this.value);
+});
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+loadData();
+
+// Set today's date as default
+const today = new Date().toISOString().slice(0,10);
+document.getElementById('entry-date').value = today;
+document.getElementById('entry-month').value = MONTHS[new Date().getMonth()];
+
+renderDashboard();
+</script>
+</body>
+</html>
