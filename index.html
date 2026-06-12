@@ -1091,8 +1091,7 @@ const GIST_ID_KEY = 'gist_id';
 const AUTO_SYNC_KEY = 'auto_sync';
 const SYNC_DIR_KEY = 'sync_direction';
 
-// ── HARDCODED CREDENTIALS (shared across all users) ──
-const HARDCODED_TOKEN = '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';
+// ── CREDENTIALS: enter once via Sync tab, persists in localStorage forever ──
 const HARDCODED_GIST_ID = ''; // will be auto-populated after first createGist()
 
 // ── ADMIN DETECTION: access via ?admin=1 or #admin ──
@@ -1231,7 +1230,7 @@ function saveData() {
 // ══════════════════════════════════════════════════
 //  GITHUB GIST SYNC
 // ══════════════════════════════════════════════════
-function getToken() { return HARDCODED_TOKEN; }
+function getToken() { return localStorage.getItem(GITHUB_TOKEN_KEY) || ''; }
 function getGistId() { return localStorage.getItem(GIST_ID_KEY) || HARDCODED_GIST_ID; }
 function getAutoSync() { return localStorage.getItem(AUTO_SYNC_KEY) === 'true'; }
 function getSyncDir() { return localStorage.getItem(SYNC_DIR_KEY) || 'bidirectional'; }
@@ -1285,6 +1284,12 @@ async function githubFetch(url, opts={}) {
 }
 
 async function testConnection() {
+  // If user typed a new token in the field, save it first
+  const tokenEl = document.getElementById('github-token');
+  if (tokenEl && tokenEl.value && !tokenEl.value.includes('●')) {
+    localStorage.setItem(GITHUB_TOKEN_KEY, tokenEl.value.trim());
+    tokenEl.value = '●'.repeat(20) + ' (saved)';
+  }
   const token = getToken();
   updateSyncUI('syncing', 'Testing...');
   logSync('Testing GitHub connection...', 'time');
@@ -1851,7 +1856,12 @@ function renderShiftBreakdown() {
 // ══════════════════════════════════════════════════
 function renderCloudPage() {
   const tokenEl = document.getElementById('github-token');
-  if (tokenEl) { tokenEl.value = '●●●●●●●●●●●●●● (hardcoded)'; tokenEl.disabled = true; }
+  if (tokenEl) {
+    const saved = getToken();
+    tokenEl.value = saved ? '●'.repeat(20) + ' (saved)' : '';
+    tokenEl.disabled = false;
+    tokenEl.placeholder = 'Paste your GitHub token here';
+  }
   document.getElementById('gist-id').value = getGistId();
   document.getElementById('auto-sync').checked = getAutoSync();
   document.getElementById('sync-direction').value = getSyncDir();
